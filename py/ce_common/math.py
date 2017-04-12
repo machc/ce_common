@@ -17,3 +17,30 @@ def softmax(x, axis=0):
 def angdiff(x, y):
     d = x - y
     return ((d + np.pi) % (2*np.pi)) - np.pi
+
+
+def rotx(ang):
+    """ Return rotation around x.
+
+    >>> np.allclose(rotx(0), np.eye(3))
+    True
+    >>> np.allclose(rotx(np.pi/2), np.array([[1,0,0], [0, 0, -1], [0, 1, 0]]))
+    True
+    """
+    return np.array([[1, 0, 0],
+                     [0, np.cos(ang), -np.sin(ang)],
+                     [0, np.sin(ang), np.cos(ang)]])
+
+
+def roty(ang):
+    """ See also: rotx. """
+    return np.array([[np.cos(ang), 0, np.sin(ang)],
+                     [0, 1, 0],
+                     [-np.sin(ang), 0, np.cos(ang)]])
+
+
+def rotz(ang):
+    """ See also: rotx. """
+    return np.array([[np.cos(ang), -np.sin(ang), 0],
+                     [np.sin(ang), np.cos(ang), 0],
+                     [0, 0, 1]])
