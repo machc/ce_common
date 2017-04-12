@@ -97,3 +97,25 @@ def to_one_hot(v):
     out = np.zeros((n, m))
     out[np.arange(n), v] = 1
     return out
+
+
+def closest_sorted(x, v):
+    """ Return id closest to v in vector x.
+
+    Examples:
+    >>> closest_sorted([1,2,3,4], 2.9)
+    2
+    >>> closest_sorted([1,2,3,4], 3.1)
+    2
+    >>> closest_sorted([1,2,3,4], 3.6)
+    3
+
+    """
+    c1 = np.searchsorted(x, v)  # first candidate
+    c2 = c1 - 1
+    if abs(x[c1] - v) > abs(x[c2] - v):
+        return c2
+    else:
+        return c1
+
+
