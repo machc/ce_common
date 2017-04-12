@@ -10,7 +10,7 @@
          '(("c" "Add to current file")
            ("ct" "Todo" entry (file+olp (buffer-file-name) "TODOList") "* TODO %? ")
            ;; TODO: make this a datetree?
-           ("cl" "Log" entry (file+olp (buffer-file-name) "Log") "*  %? ")))))
+           ("cl" "Log" entry (file+datetree (buffer-file-name) "Log") "*  %? ")))))
     (org-capture)))
 
 (defun ce/copy-org-code-block ()
