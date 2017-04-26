@@ -57,16 +57,19 @@ def list_params(common, changing, add_runid=False):
     return parlist
 
 
-def to_timevec(tout, x, tin):
-    """ Convert timeseries to time vector.
+def to_timevec(tout, x, tin, kind='linear'):
+    """ Convert timeseries to given time vector.
 
     Args:
         tout (n x 1): output time
         x (m x l): input time series
         tin (m x 1): input time
     """
+    if x.ndim == 1:
+        x = x[..., np.newaxis]
 
-    return np.array([np.interp(tout, tin, xdim) for xdim in x.transpose()]).T
+    return np.squeeze(np.array([np.interp(tout, tin, xdim)
+                                for xdim in x.transpose()]).T)
 
 
 def grouper(iterable, n, fillvalue=None):

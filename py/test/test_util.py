@@ -37,3 +37,13 @@ def test_rescale():
     assert np.allclose(util.rescale(1, (-1, 1), (0, 96)), 96)
     assert np.allclose(util.rescale(48, (0, 96), (-1, 1)), 0)
     
+
+def test_to_timevec():
+    x = np.array([4, 5, 6])
+    t = np.array([1, 2, 3])
+    new_t = np.array([1.5, 2.5])
+
+    ref = np.array([4.5, 5.5])
+    out = util.to_timevec(new_t, x, t)
+    assert np.allclose(out, ref)
+
