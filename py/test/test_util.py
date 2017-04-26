@@ -41,9 +41,13 @@ def test_rescale():
 def test_to_timevec():
     x = np.array([4, 5, 6])
     t = np.array([1, 2, 3])
-    new_t = np.array([1.5, 2.5])
+    new_t = np.array([1.2, 2.2])
 
-    ref = np.array([4.5, 5.5])
+    ref = np.array([4.2, 5.2])
     out = util.to_timevec(new_t, x, t)
     assert np.allclose(out, ref)
 
+    ref = np.array([4., 5.])
+    out = util.to_timevec(new_t, x, t, kind='nearest')
+    assert np.allclose(out, ref)
+    

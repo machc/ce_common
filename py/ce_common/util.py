@@ -1,6 +1,7 @@
 import itertools
 
 import numpy as np
+import scipy.interpolate
 
 
 def combine_params(params, add_runid=False):
@@ -68,8 +69,10 @@ def to_timevec(tout, x, tin, kind='linear'):
     if x.ndim == 1:
         x = x[..., np.newaxis]
 
-    return np.squeeze(np.array([np.interp(tout, tin, xdim)
-                                for xdim in x.transpose()]).T)
+    out = [scipy.interpolate.interpolate.interp1d(tin, xdim, kind=kind)(tout)
+           for xdim in x.transpose()]
+
+    return np.squeeze(np.array(out).T)
 
 
 def grouper(iterable, n, fillvalue=None):
