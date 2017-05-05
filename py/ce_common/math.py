@@ -44,3 +44,13 @@ def rotz(ang):
     return np.array([[np.cos(ang), -np.sin(ang), 0],
                      [np.sin(ang), np.cos(ang), 0],
                      [0, 0, 1]])
+
+
+def vec2skew(v):
+    """ Vector to skew symmetric matrix. """
+    assert v.shape == (3,)
+    S = np.array([[    0, -v[2],  v[1]],
+                  [ v[2],     0, -v[0]],
+                  [-v[1],  v[0],    0]])
+
+    return S
