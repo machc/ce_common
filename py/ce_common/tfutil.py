@@ -26,31 +26,50 @@ def count_weights(print_perlayer=True):
     return acc_total
 
 
-def run_tensorboard(logdirs, ids, port=6123):
+def tf_config():
+    """ Default tensorflow config. """
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    return config
+
+
+def run_tensorboard(logdirs, ids=None, port=6123, host=None):
     """ Run tensorboard on given directories and run_ids. """
-    # tensorboard command
-    tbcmd = "source ~/.profile; pkill -9 tensorboard; tensorboard --reload_interval 60 --logdir={} --port={} &"
-
     tbflags = ''
-    for run_id, logdir in zip(ids, logdirs):
-        tbflags += run_id + ':' + logdir + ','
-    tbflags = tbflags[:-1]
-    # WARNING: we are ignoring this note from the manual:
-    # Note: Do not use stdout=PIPE or stderr=PIPE with this function
-    #       as that can deadlock based on the child process output volume.
-    #       Use Popen with the communicate() method when you need pipes.
-    subprocess.call(tbcmd.format(tbflags, port),
-                    shell=True,
-                    executable='bash',
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE)
+    if ids is None:
+        tbflags = logdirs
+    else:
+        for run_id, logdir in zip(ids, logdirs):
+            tbflags += run_id + ':' + logdir + ','
+        tbflags = tbflags[:-1]
 
+    shcmd = 'ssh {}'.format(host) if host is not None else 'bash'
+    sh = subprocess.Popen(shcmd.split(' '),
+                          stdin=subprocess.PIPE,
+                          stdout=subprocess.PIPE)
+    sh.stdin.write('source ~/.profile \n'.encode())
+    sh.stdin.write('pkill -9 tensorboard \n'.encode())
+    sh.stdin.write('tensorboard --reload_interval 60 --logdir={} --port={} \n'
+                   .format(tbflags, port).encode())
+    sh.stdin.close()
+    # print(sh.stdout.read())
+
+    if host is not None:
+        ip = host[host.index('@')+1:]
+        sh = subprocess.Popen('bash',
+                              stdin=subprocess.PIPE,
+                              stdout=subprocess.PIPE)
+        # kill previous tunnel, then reopen it
+        sh.stdin.write('fuser -k {}/tcp \n'.format(port).encode())
+        sh.stdin.write('ssh -L {}:{}:{} {} -N \n'.format(port, ip, port, host).encode())
+        sh.stdin.close()
 
 def dispatch(params,
              outfile,
              regexp='',
              gpus=[0, 1, 2, 3],
-             verbose=False):
+             verbose=False,
+             tensorboard_port=6123):
     """ Dispatch list of training jobs.
 
     Args:
@@ -76,7 +95,7 @@ def dispatch(params,
         while not q.empty():
             p = q.get()
             if isinstance(gpu, list):
-                cmd = ('ssh {} CUDA_VISIBLE_DEVICES={} python3 {}'
+                cmd = ('ssh {} source ~/.profile; CUDA_VISIBLE_DEVICES={} python3 {}'
                        .format(gpu[0], gpu[1], p['cmd']).split(' '))
                 env = None
             else:
@@ -114,6 +133,9 @@ def dispatch(params,
                 if m:
                     print(m.string, end='')
 
+        # CHECKME !!!
+        q.task_done()
+
     def manage_tb(entries, q, tsleep=30):
         """ Thread to manage tensorboard.
 
@@ -130,7 +152,8 @@ def dispatch(params,
             if prev_qsize != curr_qsize:  # rerun tb?
                 # tensorboard flags
                 run_tensorboard([dict(e)['logdir'] for e in set_entries - curr_q],
-                                [dict(e)['id'] for e in set_entries - curr_q])
+                                [dict(e)['id'] for e in set_entries - curr_q],
+                                port=tensorboard_port)
                 prev_qsize = curr_qsize
 
     tbt = threading.Thread(target=manage_tb, args=[params, q])
