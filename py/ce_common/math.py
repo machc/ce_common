@@ -46,6 +46,42 @@ def rotz(ang):
                      [0, 0, 1]])
 
 
+def rotvol(V, R, p=None):
+    """ Rotate volume around a point p.
+
+    Note: (0,0,0) is top-left-front of the cube.
+          x points down, y right, z back.
+
+    Args:
+        V ((x,y,z) ndarray) - input volumetric representation (binary occupancy grid)
+        R ((3,3) ndarray) - rotation matrix
+        p ((3,) ndarray) - center of rotation
+    """
+    if p is None:
+        p = np.zeros(3)
+
+    assert V.ndim == 3
+    assert R.shape == (3, 3)
+    assert p.shape == (3,)
+
+    p = p[:, np.newaxis]
+    x, y, z = np.meshgrid(*[range(s) for s in V.shape])
+    x, y, z = [_.ravel() for _ in [x, y ,z]]
+    # inverse rotation
+    rotpix = (R.T.dot(np.vstack([x.ravel(), y.ravel(), z.ravel()]) - p) + p + 0.5).astype('int')
+    Vout = np.zeros_like(V)
+
+    # source
+    x_s, y_s, z_s = rotpix
+    valid = ((0 <= x_s) & (x_s < V.shape[0]) &
+             (0 <= y_s) & (y_s < V.shape[1]) &
+             (0 <= z_s) & (z_s < V.shape[2]))
+
+    Vout[x[valid], y[valid], z[valid]] = V[x_s[valid], y_s[valid], z_s[valid]]
+
+    return Vout
+
+
 def vec2skew(v):
     """ Vector to skew symmetric matrix. """
     assert v.shape == (3,)
