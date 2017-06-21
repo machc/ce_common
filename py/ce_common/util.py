@@ -4,6 +4,16 @@ import numpy as np
 import scipy.interpolate
 
 
+class AttrDict(dict):
+    """ Dict that allows access like attributes (d.key instead of d['key']) .
+
+    From: http://stackoverflow.com/a/14620633/6079076
+    """
+    def __init__(self, *args, **kwargs):
+        super(AttrDict, self).__init__(*args, **kwargs)
+        self.__dict__ = self
+
+
 def combine_params(params, add_runid=False):
     """ Dict of lists to list of dicts.
 
