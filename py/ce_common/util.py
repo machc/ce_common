@@ -1,4 +1,5 @@
 import itertools
+import threading
 
 import numpy as np
 import scipy.interpolate
@@ -12,6 +13,18 @@ class AttrDict(dict):
     def __init__(self, *args, **kwargs):
         super(AttrDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
+
+
+def threaded(fn):
+    """ Decorator to run function on its own thread.
+
+    From: https://stackoverflow.com/questions/19846332/python-threading-inside-a-class/19846691#19846691 """
+    def wrapper(*args, **kwargs):
+        thread = threading.Thread(target=fn, args=args, kwargs=kwargs)
+        thread.daemon = True
+        thread.start()
+        return thread
+    return wrapper
 
 
 def combine_params(params, add_runid=False):
