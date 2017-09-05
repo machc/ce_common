@@ -64,12 +64,13 @@ def run_tensorboard(logdirs, ids=None, port=6123, host=None):
         sh.stdin.write('ssh -L {}:{}:{} {} -N \n'.format(port, ip, port, host).encode())
         sh.stdin.close()
 
+
 def dispatch(params,
              outfile,
              regexp='',
              gpus=[0, 1, 2, 3],
              verbose=False,
-             tensorboard_port=6123):
+             tensorboard_port=None):
     """ Dispatch list of training jobs.
 
     Args:
@@ -78,7 +79,9 @@ def dispatch(params,
         regexp (str): print stdout lines matching this
         gpus (list or list of lists): if list, entries are GPU ids; run locally
                                       if list of lists, entries are of format ['host', GPU_ID]
-
+        verbose (bool):
+        tensorboard_port (int): port to run tensorboard locally (if not None);
+                                we assume some sort of log synchronization is running on background
     """
 
     q = queue.Queue()
@@ -156,9 +159,10 @@ def dispatch(params,
                                 port=tensorboard_port)
                 prev_qsize = curr_qsize
 
-    tbt = threading.Thread(target=manage_tb, args=[params, q])
-    tbt.daemon = True
-    tbt.start()
+    if tensorboard_port is not None:
+        tbt = threading.Thread(target=manage_tb, args=[params, q])
+        tbt.daemon = True
+        tbt.start()
 
     threads = []
 
