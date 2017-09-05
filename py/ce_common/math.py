@@ -46,6 +46,13 @@ def rotz(ang):
                      [0, 0, 1]])
 
 
+def rot_rand():
+    """ Return random rotation matrix. """
+    R = np.random.rand(3, 3)
+    U, S, V = np.linalg.svd(R)
+    return U.dot(V)
+
+
 def rotvol(V, R, p=None):
     """ Rotate volume around a point p.
 
