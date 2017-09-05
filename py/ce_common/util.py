@@ -68,6 +68,12 @@ def list_params(common, changing, add_runid=False):
     return parlist
 
 
+def paramdict2str(d, exclude=[]):
+    """ Convert dict of params to string of form --name1=value1 --name2=value2 ... """
+    return ' '.join(['--{}{}{}'.format(k, '=' if v else '', v)
+                     for k, v, in sorted(d.items()) if k not in exclude])
+
+
 def to_timevec(tout, x, tin, kind='linear'):
     """ Convert timeseries to given time vector.
 
