@@ -108,8 +108,9 @@ def dispatch(params,
 
             # print(cmd)
             # note: if set env=CUDA_VISIBLE_DEVICES when running remotely, ssh-keys won't work
-            logname = '{}/{}.log'.format(p['logdir'], p['id'])
-            os.makedirs(p['logdir'], exist_ok=True)
+            logdir = os.path.expanduser(p['logdir'])
+            logname = '{}/{}.log'.format(logdir, p['id'])
+            os.makedirs(logdir, exist_ok=True)
             with open(logname, 'wt') as fout:
                 out[p['id']] = subprocess.run(cmd,
                                               env=env,
