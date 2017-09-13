@@ -40,23 +40,24 @@ def combine_params(params, add_runid=False):
         params = [params]
 
     out = []
-    for p in params:
+    for parlist in params:
         # make sure inputs are lists
-        for k, v in p.items():
+        for k, v in parlist.items():
             if not isinstance(v, list):
-                p[k] = [v]
+                parlist[k] = [v]
 
-        parlist = [dict(zip(p.keys(), x)) for x in itertools.product(*p.values())]
+        parlists = [dict(zip(parlist.keys(), x))
+                    for x in itertools.product(*parlist.values())]
 
         if add_runid:
-            for p in parlist:
+            for p in parlists:
                 run_id = ''
                 for k, v in sorted(p.items()):
-                    if len(p[k]) > 1:
+                    if len(params[0][k]) > 1:
                         run_id += k + '_' + str(v) + '_'
                 p['run_id'] = p.get('run_id', '') + run_id[:-1]
 
-        out += parlist
+        out += parlists
 
     return out
 
