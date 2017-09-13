@@ -167,3 +167,14 @@ def shuffle_all(*args):
     idx = np.random.permutation(len(args[0]))
     return [a[idx] for a in args]
 
+
+class temp_nprandom_state:
+    def __init__(self, seed=0):
+        self.seed = seed
+
+    def __enter__(self):
+        self.prev_state = np.random.get_state()
+        np.random.seed(self.seed)
+
+    def __exit__(self, type, value, traceback):
+        np.random.set_state(self.prev_state)
