@@ -162,3 +162,8 @@ def closest_sorted(x, v):
         return c1
 
 
+def shuffle_all(*args):
+    """ Do the same random permutation to all inputs. """
+    idx = np.random.permutation(len(args[0]))
+    return [a[idx] for a in args]
+

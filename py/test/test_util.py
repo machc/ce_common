@@ -51,3 +51,11 @@ def test_to_timevec():
     out = util.to_timevec(new_t, x, t, kind='nearest')
     assert np.allclose(out, ref)
     
+def test_shuffle_all():
+    x = np.random.rand(10)
+    y, z = [x.copy() for _ in range(2)]
+    xt, yt, zt = util.shuffle_all(x, y, z)
+
+    assert not np.allclose(xt, x)
+    assert np.allclose(xt, yt)
+    assert np.allclose(yt, zt)
