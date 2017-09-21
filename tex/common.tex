@@ -5,3 +5,12 @@
 \newcommand{\threebythree}[9]{\begin{pmatrix}#1 & #2 & #3 \\#4 & #5 & #6\\#7 & #8 & #9 \end{pmatrix}}
 \newcommand{\threebyone}[3]{\begin{pmatrix}#1 \\ #2 \\ #3\end{pmatrix}}
 \newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+
+% footnotes with no markers
+% see: https://tex.stackexchange.com/questions/30720/footnote-without-a-marker
+\newcommand\blfootnote[1]{%
+  \begingroup%
+  \renewcommand\thefootnote{}\footnote{#1}%
+  \addtocounter{footnote}{-1}%
+  \endgroup%
+}
