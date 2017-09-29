@@ -58,18 +58,21 @@ def tile_imgs(imgs, gap=1, fill=np.nan):
     Args:
         imgs (list of lists)
     """
-    if not isinstance(imgs[0], list):
+    if not isinstance(imgs[0], (list, tuple)):
         imgs = [imgs]
+
+    assert imgs[0][0].dtype == 'uint8'
 
     nrows = len(imgs)
     ncols = len(imgs[0])
 
     try:
-        W, H = imgs[0][0].shape
+        H, W = imgs[0][0].shape
         figout = np.empty((nrows*H + (nrows-1)*gap,
-                           ncols*W + (ncols-1)*gap))
+                           ncols*W + (ncols-1)*gap),
+                          dtype='uint8')
     except ValueError:
-        W, H, C = imgs[0][0].shape
+        H, W, C = imgs[0][0].shape
         figout = np.empty((nrows*H + (nrows-1)*gap,
                            ncols*W + (ncols-1)*gap,
                            C),
