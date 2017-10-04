@@ -65,11 +65,12 @@ def combine_params(params, add_runid=False):
 def list_params(common, changing, add_runid=False):
     """ Add dict to list of several dicts.
 
-    Return list of params.
+        Return list of params; each element contains all keys from 'common'
+    and its own keys from 'changing'
 
     Args:
         common (dict): common params (all outputs will have these)
-        changing (list of dict): changing params; each output correspond to one of these
+        changing (list of dict): changing params; each output corresponds to one of these
         add_runid (str): add identifier to each params
     """
     assert isinstance(common, dict)
@@ -91,7 +92,7 @@ def list_params(common, changing, add_runid=False):
 
 def paramdict2str(d, exclude=[]):
     """ Convert dict of params to string of form --name1=value1 --name2=value2 ... """
-    return ' '.join(['--{}{}{}'.format(k, '=' if v else '', v)
+    return ' '.join(['--{}{}{}'.format(k, '=' if v != '' else '', v)
                      for k, v, in sorted(d.items()) if k not in exclude])
 
 
@@ -112,18 +113,33 @@ def to_timevec(tout, x, tin, kind='linear'):
     return np.squeeze(np.array(out).T)
 
 
-def grouper(iterable, n, fillvalue=None):
+def grouper(iterable, n, rounding_mode='insert_none'):
     """ Iterate over chunks of iterable.
 
-    Note: will fill last value with None if size is not a multiple of n.
+    Args:
+        rounding_mode ['insert_none', 'ignore', or 'early_termination']:
+    what to do when len(iterable) is not multiple of n
 
-    From: http://stackoverflow.com/a/434411/6079076
+    Based on: http://stackoverflow.com/a/434411/6079076
     """
+    def remove_none(X):
+        for Y in X:
+            yield tuple([y for y in Y if y is not None])
+
+    def early_term(X):
+        for Y in X:
+            if all([y is not None for y in Y]):
+                yield Y
     args = [iter(iterable)] * n
-    return itertools.zip_longest(*args, fillvalue=fillvalue)
+    if rounding_mode == 'ignore':
+        return remove_none(itertools.zip_longest(*args, fillvalue=None))
+    elif rounding_mode == 'early_termination':
+        return early_term(itertools.zip_longest(*args, fillvalue=None))
+    elif rounding_mode == 'insert_none':
+        return itertools.zip_longest(*args, fillvalue=None)
 
 
-def rescale(val, lim_orig=None, lim_out=(-1,1)):
+def rescale(val, lim_orig=None, lim_out=(-1, 1)):
     """ Rescale val from limits lim0 to limits lim1. """
     if lim_orig is None:
         lim_orig = (val.min(), val.max())
