@@ -39,3 +39,11 @@ def test_rotvol():
     out = math.rotvol(V, R, mid)
     assert np.allclose(out, out_gt)
     
+
+def test_absmax():
+    for _ in range(3):
+        x = np.random.rand(20, 25)
+        res = math.absmax(x)
+        ref = abs(x).max()
+
+        assert np.allclose(abs(res), ref)

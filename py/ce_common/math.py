@@ -3,6 +3,11 @@
 import numpy as np
 
 
+def absmax(x, axis=None):
+    """ Return complex number with maximum magnitude. """
+    return x.ravel()[abs(x).argmax(axis=axis)]
+
+
 def softmax(x, axis=0):
     assert axis in [0, 1]
 
