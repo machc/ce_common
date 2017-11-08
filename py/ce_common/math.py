@@ -5,7 +5,16 @@ import numpy as np
 
 def absmax(x, axis=None):
     """ Return complex number with maximum magnitude. """
-    return x.ravel()[abs(x).argmax(axis=axis)]
+    if axis is not None:
+        # see https://stackoverflow.com/a/40357693
+        x = np.moveaxis(x, axis, -1)
+        idx = abs(x).argmax(axis=-1)
+        shp = np.array(x.shape)
+        dim_idx = list(np.ix_(*[np.arange(i) for i in shp[:-1]]))
+        dim_idx.append(idx)
+        return x[dim_idx]
+    else:
+        return x.ravel()[abs(x).argmax()]
 
 
 def softmax(x, axis=0):
