@@ -67,6 +67,18 @@ def rot_rand():
     return U.dot(V)
 
 
+def to_homogeneous(R):
+    """ Convert matrix to homogeneous matrix. """
+    n = R.shape[0]
+    assert n == R.shape[1]
+    assert R.ndim == 2
+
+    out = np.eye(n+1)
+    out[:n, :n] = R
+
+    return out
+
+
 def rotvol(V, R, p=None):
     """ Rotate volume around a point p.
 
