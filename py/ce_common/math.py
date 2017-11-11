@@ -64,7 +64,10 @@ def rot_rand():
     """ Return random rotation matrix. """
     R = np.random.rand(3, 3)
     U, S, V = np.linalg.svd(R)
-    return U.dot(V)
+    det = np.linalg.det(U.dot(V))
+    return U.dot(V).dot([[1, 0, 0],
+                         [0, 1, 0],
+                         [0, 0, det]])
 
 
 def to_homogeneous(R):
