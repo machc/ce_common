@@ -15,6 +15,18 @@ class AttrDict(dict):
         self.__dict__ = self
 
 
+class temp_nprandom_state:
+    def __init__(self, seed=0):
+        self.seed = seed
+
+    def __enter__(self):
+        self.prev_state = np.random.get_state()
+        np.random.seed(self.seed)
+
+    def __exit__(self, type, value, traceback):
+        np.random.set_state(self.prev_state)
+
+
 def threaded(fn):
     """ Decorator to run function on its own thread.
 
@@ -92,8 +104,13 @@ def list_params(common, changing, add_runid=False):
 
 def paramdict2str(d, exclude=[]):
     """ Convert dict of params to string of form --name1=value1 --name2=value2 ... """
-    return ' '.join(['--{}{}{}'.format(k, '=' if v != '' else '', v)
-                     for k, v, in sorted(d.items()) if k not in exclude])
+    out = ''
+    for k, v, in sorted(d.items()):
+        if k not in exclude:
+            prefix = '' if k.startswith('-') or k.startswith('@')  else '--'
+            out += ' {}{}{}{}'.format(prefix, k, '=' if v != '' else '', v)
+
+    return out
 
 
 def to_timevec(tout, x, tin, kind='linear'):
@@ -184,13 +201,32 @@ def shuffle_all(*args):
     return [a[idx] for a in args]
 
 
-class temp_nprandom_state:
-    def __init__(self, seed=0):
-        self.seed = seed
+def circumscribed_square(rect):
+    """ Return square circumscribing rectangle with integer coordinates.
 
-    def __enter__(self):
-        self.prev_state = np.random.get_state()
-        np.random.seed(self.seed)
+    Useful to making bounding boxes square.
 
-    def __exit__(self, type, value, traceback):
-        np.random.set_state(self.prev_state)
+    Args:
+        rect: (top, left, width, height)
+    Returns:
+        square (top, left, length, lenght)
+
+    Examples:
+    >>> circumscribed_square([10,10,10,20])
+    [5, 10, 20, 20]
+    >>> circumscribed_square([7,11,20,10])
+    [7, 6, 20, 20]
+    """
+    l, t, w, h = [np.int32(x) for x in rect]
+    if w < h:
+        d = (h-w)/2
+        l -= int(np.floor(d))
+        w += int(2*d)
+    else:
+        d = (w-h)/2
+        t -= int(np.floor(d))
+        h += int(2*d)
+
+    assert h == w
+
+    return [l, t, w, h]
