@@ -65,6 +65,18 @@ def run_tensorboard(logdirs, ids=None, port=6123, host=None):
         sh.stdin.close()
 
 
+def safe_cast(x, y):
+    """ Cast x to type of y or y to type of x, without loss of precision.
+
+    Works with complex and floats of any precision
+    """
+    t = 'complex' if (x.dtype.is_complex or y.dtype.is_complex) else 'float'
+    s = max(x.dtype.size, y.dtype.size)
+    dtype = '{}{}'.format(t, s*8)
+
+    return tf.cast(x, dtype), tf.cast(y, dtype)
+
+
 def dispatch(params,
              outfile,
              regexp='',
