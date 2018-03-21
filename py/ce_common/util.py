@@ -204,7 +204,7 @@ def shuffle_all(*args):
 def circumscribed_square(rect):
     """ Return square circumscribing rectangle with integer coordinates.
 
-    Useful to making bounding boxes square.
+    Useful for making bounding boxes square.
 
     Args:
         rect: (top, left, width, height)
@@ -230,3 +230,42 @@ def circumscribed_square(rect):
     assert h == w
 
     return [l, t, w, h]
+
+
+def inscribed_square(rect):
+    """ Return central square inscribed in rectangle with integer coordinates.
+
+    Useful for making rectangular image square.
+
+    Args:
+        rect: (top, left, width, height)
+    Returns:
+        square (top, left, length, lenght)
+
+    Examples:
+    >>> inscribed_square([10,10,10,20])
+    [10, 15, 10, 10]
+    >>> inscribed_square([7,11,20,10])
+    [12, 11, 10, 10]
+    """
+    l, t, w, h = [np.int32(x) for x in rect]
+    if w < h:
+        d = (h-w)/2
+        t += int(np.floor(d))
+        h -= int(2*d)
+    else:
+        d = (w-h)/2
+        l += int(np.floor(d))
+        w -= int(2*d)
+
+    assert h == w
+
+    return [l, t, w, h]
+
+
+def decode_maybe(s):
+    """ Do nothing is s is string, else attempt to decode. """
+    if isinstance(s, str):
+        return s
+    else:
+        return s.decode()
