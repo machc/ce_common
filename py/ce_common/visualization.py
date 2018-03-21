@@ -1,5 +1,10 @@
 import numpy as np
-from matplotlib import pyplot as plt
+
+try:
+    from matplotlib import pyplot as plt
+except ImportError:
+    print('Cannot load matplotlib; continuing...')
+
 import skimage.color
 import skimage.draw
 
@@ -31,6 +36,16 @@ def draw_horizontal_line_img(im, i, color=(1., 0, 0)):
     if imout.ndim == 2:
         imout = skimage.color.gray2rgb(imout)
     rr, cc = skimage.draw.line(int(i), 0, int(i), im.shape[1]-1)
+    imout[rr, cc, :] = color
+    return imout
+
+
+def draw_box_img(im, r, c, w, h, color=(1., 0, 0)):
+    """ Return image box drawn. """
+    imout = im.copy()
+    if imout.ndim == 2:
+        imout = skimage.color.gray2rgb(imout)
+    rr, cc = skimage.draw.polygon_perimeter([r, r, r+h, r+h, r], [c, c+w, c+w, c, c])
     imout[rr, cc, :] = color
     return imout
 
@@ -104,3 +119,17 @@ def fig_to_array(fig):
     data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
 
     return data
+def confusion_matrix(matrix, labels=[],
+                     title='cols are predictions; rows are real labels',
+                     saveto=''):
+    import seaborn as sns
+    fig = plt.figure()
+    f = sns.heatmap(matrix, annot=True, fmt='.2f')
+    f.set_xticklabels(labels, rotation='vertical')
+    f.set_yticklabels(labels[::-1], rotation='horizontal')
+    f.set_title(title)
+    if saveto:
+        plt.savefig(saveto, bbox_inches='tight', pad_inches=0.0)
+
+    return fig
+
