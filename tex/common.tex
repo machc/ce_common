@@ -1,10 +1,27 @@
 % common latex commands shared by many projects
+\usepackage{mathtools}
+
 \newcommand{\TODO}[1]{\color{red}\textbf{TODO: #1}\color{black}}
 \newcommand{\twobytwo}[4]{\begin{pmatrix}#1 & #2 \\#3 & #4\end{pmatrix}}
 \newcommand{\twobyone}[2]{\begin{pmatrix}#1 \\ #2 \end{pmatrix}}
 \newcommand{\threebythree}[9]{\begin{pmatrix}#1 & #2 & #3 \\#4 & #5 & #6\\#7 & #8 & #9 \end{pmatrix}}
 \newcommand{\threebyone}[3]{\begin{pmatrix}#1 \\ #2 \\ #3\end{pmatrix}}
 \newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+
+\DeclarePairedDelimiter\ceil{\lceil}{\rceil}
+\DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
+\DeclarePairedDelimiter\inner{\langle}{\rangle}
+
+% aliases
+\newcommand{\ra}{\rightarrow}
+\newcommand{\eps}{\epsilon}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\SO}{\ensuremath{\mathbf{SO}}}
+\newcommand{\so}{\mfrac{so}}
+\newcommand{\tr}{\text{tr}}
+
+%
+\newcommand{\etal}{\textit{et al}. }
 
 % footnotes with no markers
 % see: https://tex.stackexchange.com/questions/30720/footnote-without-a-marker
