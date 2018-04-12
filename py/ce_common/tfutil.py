@@ -198,6 +198,14 @@ def dispatch(params,
         pickle.dump({'params': params, 'out': out}, fout)
 
     return out
+def check_complex(x, msg):
+    """ Run check_numerics on complex values. """
+    r = tf.check_numerics(tf.real(x), msg + ' real')
+    c = tf.check_numerics(tf.imag(x), msg + ' imag')
+
+    return tf.complex(r, c)
+
+
 def tensorboard_curr_graph():
     """ Save current graph to /tmp, call tensorboard and open browser. """
     graph = tf.get_default_graph()
