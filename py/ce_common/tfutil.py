@@ -5,15 +5,15 @@ import pickle
 import queue
 import threading
 import re
-import uuid
 import time
+import webbrowser
 
 import numpy as np
 import tensorflow as tf
 
 
 def count_weights(print_perlayer=True):
-    """ Count number of weights on current tf graph. """
+    """ Count number of trainable variables on current tf graph. """
     acc_total = 0
     for v in tf.trainable_variables():
         dims = v.get_shape().as_list()
@@ -198,3 +198,13 @@ def dispatch(params,
         pickle.dump({'params': params, 'out': out}, fout)
 
     return out
+def tensorboard_curr_graph():
+    """ Save current graph to /tmp, call tensorboard and open browser. """
+    graph = tf.get_default_graph()
+    writer = tf.summary.FileWriter(logdir='/tmp/tftmp', graph=graph)
+    writer.flush()
+
+    subprocess.call('pkill -9 tensorboard'.split(' '))
+    subprocess.Popen('tensorboard --logdir /tmp/tftmp'.split(' '))
+
+    webbrowser.open('http://localhost:6006')    
