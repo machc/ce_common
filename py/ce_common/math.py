@@ -29,7 +29,7 @@ def softmax(x, axis=0):
 
 
 def l2_normalize(x, axis=None, eps=1e-12):
-    norm = np.maximum(np.sqrt((x**2).sum(keepdims=True, axis=axis)), 1e-12)
+    norm = np.maximum(np.sqrt((np.abs(x)**2).sum(keepdims=True, axis=axis)), eps)
     return x / norm
 
 

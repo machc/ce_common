@@ -216,3 +216,15 @@ def tensorboard_curr_graph():
     subprocess.Popen('tensorboard --logdir /tmp/tftmp'.split(' '))
 
     webbrowser.open('http://localhost:6006')    
+
+
+def norm2(x, *args, **kwargs):
+    """ Returns l2-norm squared. """
+    return tf.reduce_sum(x**2, *args, **kwargs)
+
+
+def l2_normalize(x, axis=None, eps=1e-12):
+    """ Same as tf.nn.l2_normalize, but also works with complex values. """
+    inorm = tf.rsqrt(tf.maximum(tf.reduce_sum(tf.abs(x)**2, axis=axis, keepdims=True), eps))
+    x, inorm = safe_cast(x, inorm)
+    return x * inorm
