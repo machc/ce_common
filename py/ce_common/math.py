@@ -28,6 +28,11 @@ def softmax(x, axis=0):
     return np.exp(x - min_ax) / den
 
 
+def l2_normalize(x, axis=None, eps=1e-12):
+    norm = np.maximum(np.sqrt((x**2).sum(keepdims=True, axis=axis)), 1e-12)
+    return x / norm
+
+
 def angdiff(x, y):
     d = x - y
     return ((d + np.pi) % (2*np.pi)) - np.pi
@@ -58,6 +63,11 @@ def rotz(ang):
     return np.array([[np.cos(ang), -np.sin(ang), 0],
                      [np.sin(ang), np.cos(ang), 0],
                      [0, 0, 1]])
+
+
+def rotzyz(a, b, c):
+    """ Rz(a)*Ry(b)*Rz(c) """
+    return rotz(a)@roty(b)@rotz(c)
 
 
 def rot_rand():
