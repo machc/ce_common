@@ -133,3 +133,10 @@ def confusion_matrix(matrix, labels=[],
 
     return fig
 
+
+def plot3d(fun='plot', *args, **kwargs):
+    """ Create new figure w/ 3d projection and call fun w/ given args. """
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    getattr(ax, 'scatter')(*args, **kwargs)
+
