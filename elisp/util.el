@@ -1,7 +1,7 @@
 ;; utilities -- intended to be loaded on .emacs
 
 (defun ce/org-capture-current-file ()
-  "add current file as a target to org-capture"
+  "Add current file as a target to `org-capture'."
   (interactive)
   (let
       ((org-capture-templates
@@ -9,7 +9,6 @@
          org-capture-templates
          '(("c" "Add to current file")
            ("ct" "Todo" entry (file+olp (buffer-file-name) "TODOList") "* TODO %? ")
-           ;; TODO: make this a datetree?
            ("cl" "Log" entry (file+datetree (buffer-file-name) "Log") "*  %? ")))))
     (org-capture)))
 
@@ -141,9 +140,16 @@ is executable."
 ;; will someday evolve to a org-ref-scholar-to-bibtex-pdf
 (defun ce/search-region-google-scholar (beg end)
   (interactive "r")
-  (browse-url (concat  "https://scholar.google.com/scholar?q="
-                       (replace-regexp-in-string " " "+"
-                                                 (buffer-substring-no-properties beg end)))))
+  (browse-url
+   (concat
+    "https://scholar.google.com/scholar?q="
+    (replace-regexp-in-string
+     " "
+     "+"
+     (if (eq major-mode 'pdf-view-mode)
+         ;; pdf-view-active-region-text returns list of hopefully one string
+         (car (pdf-view-active-region-text))
+       (buffer-substring-no-properties beg end))))))
 
 (defun ce/www-get-page-title (url)
   "Return <title> from url. "
@@ -153,7 +159,7 @@ is executable."
       (re-search-forward "<title>\\([^<]*\\)</title>" nil t 1)
       (setq title (match-string 1))
       (goto-char (point-min))
-      (re-search-forward "charset=\\([-0-9a-zA-Z]*\\)" nil t 1)
+      (re-search-forward "charset='?\\([-0-9a-zA-Z]*\\)'?" nil t 1)
       (decode-coding-string title (intern (downcase (match-string 1)))))))
 
 (defun ce/org-link-change-title ()
