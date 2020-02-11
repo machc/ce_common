@@ -122,6 +122,24 @@ def fig_to_array(fig):
     data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
 
     return data
+
+
+def subplot_ts_lines(*timeseries, title='', legend=''):
+    """ Line-subplot of timeseries.
+
+    Args:
+        list of timeseries of form [time (n,), values (n,m)]
+    """
+    # lines in fig
+    nlines = timeseries[0][1].shape[1]
+    _, axs = plt.subplots(nlines, 1)
+    axs[0].set_title(title)
+    for t in timeseries:
+        for ax, v in zip(axs, t[1].T):
+            ax.plot(t[0], v)
+    plt.legend(legend)
+
+
 def confusion_matrix(matrix, labels=[],
                      title='cols are predictions; rows are real labels',
                      saveto=''):
