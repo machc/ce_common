@@ -166,7 +166,7 @@ def plot3d(fun='plot', *args, **kwargs):
     """ Create new figure w/ 3d projection and call fun w/ given args. """
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    getattr(ax, 'scatter')(*args, **kwargs)
+    getattr(ax, fun)(*args, **kwargs)
 
 
 def save_gif(ims, outname, delay=50):
