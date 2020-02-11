@@ -76,10 +76,17 @@ def tile_imgs(imgs, gap=1, fill=np.nan):
     Args:
         imgs (list of lists)
     """
-    if not isinstance(imgs[0], (list, tuple)):
+    if isinstance(imgs, np.ndarray):
+        if imgs.ndim == 3:
+            imgs = imgs[np.newaxis]
+    elif not isinstance(imgs[0], (list, tuple)):
         imgs = [imgs]
 
-    assert imgs[0][0].dtype == 'uint8'
+    if imgs[0][0].dtype != 'uint8':
+        for row in range(len(imgs)):
+            for col in range(len(imgs[0])):
+                im = imgs[row][col]
+                imgs[row][col] = (255 * im / im.max()).astype('uint8')
 
     nrows = len(imgs)
     ncols = len(imgs[0])
