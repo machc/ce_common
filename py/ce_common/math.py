@@ -70,6 +70,11 @@ def rotzyz(a, b, c):
     return rotz(a)@roty(b)@rotz(c)
 
 
+def rotxyz(a, b, c):
+    """ Rx(a)*Ry(b)*Rz(c) """
+    return rotx(a)@roty(b)@rotz(c)
+
+
 def rot_rand():
     """ Return random rotation matrix. """
     R = np.random.rand(3, 3)
