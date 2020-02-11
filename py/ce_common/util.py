@@ -197,8 +197,12 @@ def closest_sorted(x, v):
 
 def shuffle_all(*args):
     """ Do the same random permutation to all inputs. """
-    idx = np.random.permutation(len(args[0]))
-    return [a[idx] for a in args]
+    idx = list(np.random.permutation(len(args[0])))
+    try:
+        # np arrays can be indexed like this
+        return [a[idx] for a in args]
+    except TypeError:
+        return [[a[i] for i in idx] for a in args]
 
 
 def circumscribed_square(rect):
