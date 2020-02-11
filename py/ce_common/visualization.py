@@ -1,3 +1,6 @@
+import tempfile
+import subprocess
+
 import numpy as np
 
 try:
@@ -139,4 +142,14 @@ def plot3d(fun='plot', *args, **kwargs):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     getattr(ax, 'scatter')(*args, **kwargs)
+
+
+def save_gif(ims, outname, delay=50):
+  """Make a gif from set of images."""
+  with tempfile.TemporaryDirectory() as d:
+    imfiles = [f'{d}/{i:03}.png' for i, _ in enumerate(ims)]
+    for imfile, im in zip(imfiles, ims):
+      plt.imsave(imfile, im)
+    cmd = f'convert {" ".join(imfiles)} -set delay {delay} -loop 0 {outname}'
+    subprocess.call(cmd.split(' '))
 
