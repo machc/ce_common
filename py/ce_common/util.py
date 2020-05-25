@@ -1,5 +1,7 @@
 import itertools
 import threading
+import functools
+from copy import deepcopy
 
 import numpy as np
 import scipy.interpolate
@@ -273,3 +275,19 @@ def decode_maybe(s):
         return s
     else:
         return s.decode()
+
+
+def lru_cache_copy(maxsize=128, typed=False):
+    """Same as functools.lru_cache, but returns copies.
+
+    This way the cache cannot be modified.
+
+    Source: https://stackoverflow.com/q/54909357
+    """
+    def decorator(f):
+        cached_func = functools.lru_cache(maxsize, typed)(f)
+        @functools.wraps(f)
+        def wrapper(*args, **kwargs):
+            return deepcopy(cached_func(*args, **kwargs))
+        return wrapper
+    return decorator
