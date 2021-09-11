@@ -1,5 +1,30 @@
 ;; utilities -- intended to be loaded on .emacs
 
+(defun ce/org-execute-named-block (name)
+  (save-excursion
+    (org-babel-goto-named-src-block name)
+    (org-babel-execute-src-block)
+    )
+  )
+
+
+(defun ce/org-table-kill-field ()
+  "Kill the current table field or active region. Based on org-table-blank-field."
+  (interactive)
+  (org-table-check-inside-data-field)
+  (if (and (called-interactively-p 'any) (org-region-active-p))
+      (let (org-table-clip)
+	(org-table-cut-region (region-beginning) (region-end)))
+    (skip-chars-backward "^|")
+    (backward-char 1)
+    (if (looking-at "|[^|\n]+")
+	(let* ((pos (match-beginning 0))
+	       (match (match-string 0))
+	       (len (org-string-width match)))
+          (kill-region (+ 1 pos) (+ len pos))
+          (org-table-align)
+	  ))))
+
 (defun ce/org-capture-current-file ()
   "Add current file as a target to `org-capture'."
   (interactive)
