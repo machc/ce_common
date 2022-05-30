@@ -154,6 +154,15 @@ is executable."
   (matlab-shell-run-command
    (concat "edit " (symbol-name (symbol-at-point)))))
 
+(defun ce/pdf-tools-org-export-to-org-directory (directory)
+  "Calls `pdf-tools-org-export-to-org` on all pdfs of a directory."
+  (mapc (lambda (filename)
+          (find-file filename)
+          (pdf-tools-org-export-to-org)
+          (kill-current-buffer)
+          )
+        (directory-files directory t "pdf$")))
+
 ;; grep on all bibtex-related org files
 (defun ce/grep-bibtex-org (regexp)
   "Grep for regexp on all org-files in `org-ref-pdf-directory'"
