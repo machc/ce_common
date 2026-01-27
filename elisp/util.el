@@ -307,3 +307,20 @@ is executable."
 			     (if (boundp 'old-fullscreen) old-fullscreen nil)
 			   (progn (setq old-fullscreen current-value)
 				  'fullboth)))))
+
+(defun ce/copy-column-as-list ()
+  "Copy the current Org-table column as a Python-style list to the clipboard."
+  (interactive)
+  (unless (org-at-table-p) (user-error "Not in an org table"))
+  (let* ((col-idx (1- (org-table-current-column))) ;; 0-indexed
+         (table (org-table-to-lisp))                 ;; Parse table
+         ;; Extract column, ignoring hlines ('nil' in lisp structure)
+         (col-vals (delq nil
+                         (mapcar (lambda (row)
+                                   (when (listp row) (nth col-idx row)))
+                                 table)))
+         ;; Format as [1, 2, 3]
+         (result (format "[%s]" (mapconcat #'identity col-vals ", "))))
+
+    (kill-new result)
+    (message "Copied column: %s" result)))
