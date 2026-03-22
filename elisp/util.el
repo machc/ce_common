@@ -324,3 +324,69 @@ is executable."
 
     (kill-new result)
     (message "Copied column: %s" result)))
+
+(defun ce/prompt-vterm-buffer ()
+  "Prompt the user to select a vterm buffer, defaulting to the most recent."
+  (let ((vterms (seq-filter (lambda (name) (string-match-p "vterm" name))
+                            (mapcar #'buffer-name (buffer-list)))))
+    (unless vterms (error "No vterm buffers found!"))
+    ;; Defaults to the first item (most recently active vterm buffer)
+    (completing-read "Target vterm: " vterms nil t nil nil (car vterms))))
+
+(defun ce/gemini-cli-send-string (text target-buffer &optional auto-return)
+  "Send TEXT to TARGET-BUFFER using bracketed paste."
+  (unless (get-buffer target-buffer)
+    (error "Buffer %s not found." target-buffer))
+  (with-current-buffer target-buffer
+    ;; Bracketed paste prevents the CLI from executing prematurely on newlines
+    (kill-new text)
+    (vterm-yank)
+    (when auto-return (vterm-send-return)))
+  (pop-to-buffer target-buffer))
+
+(defun ce/gemini-cli-send-region (beg end target-buffer prompt-text)
+  "Send PROMPT-TEXT and optional buffer context to a gemini-cli vterm buffer.
+If a region is active, sends the region text and line numbers.
+If no region is active but the buffer visits a file, sends the file name.
+If no region is active and no file is visited, sends only the prompt.
+File paths are made relative to the target vterm's current directory."
+  (interactive
+   (list (when (use-region-p) (region-beginning))
+         (when (use-region-p) (region-end))
+         (ce/prompt-vterm-buffer)
+         (read-string "Prompt: ")))
+
+  (unless (get-buffer target-buffer)
+    (error "Buffer %s not found." target-buffer))
+
+  (let* ((abs-file (buffer-file-name))
+         ;; Retrieve the working directory of the target vterm
+         (vterm-dir (with-current-buffer target-buffer default-directory))
+         ;; Convert absolute path to relative path
+         (file (when abs-file (file-relative-name abs-file vterm-dir)))
+         (context
+          (cond
+           ;; Case 1: Region is active (send region text)
+           ((and beg end)
+            (format "File: %s (Lines %d-%d)\n=\n%s\n=\n"
+                    (or file (buffer-name))
+                    (line-number-at-pos beg)
+                    (line-number-at-pos end)
+                    (buffer-substring-no-properties beg end)))
+           ;; Case 2: No region, but associated to a file (send file name)
+           (file
+            (format "File: %s\n" file))
+           ;; Case 3: No region, not a file
+           (t nil)))
+
+         ;; Assemble the final string to send
+         (payload
+          (cond
+           ((and context (not (string-empty-p prompt-text)))
+            (format "%s\n\n%s" prompt-text context))
+           (context context)
+           (t (format "%s\n" prompt-text)))))
+
+    ;; Avoid sending completely empty prompts if no context/prompt was given
+    (unless (string= payload "\n")
+      (ce/gemini-cli-send-string payload target-buffer nil))))
