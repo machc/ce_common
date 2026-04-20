@@ -325,6 +325,50 @@ is executable."
     (kill-new result)
     (message "Copied column: %s" result)))
 
+(defun ce/attach-latest-pdf-to-bib-entry ()
+  "Move the newest PDF from Downloads to the library, named after the latest BibTeX entry."
+  (interactive)
+  (let* ((bib-file ce/helm-bibtex-bibliography)
+         (library-path (car ce/helm-bibtex-library-path))
+         (downloads-dir "~/Downloads/")
+         ;; 1. Find the most recent citation key in the bib file
+         (latest-key
+          (with-temp-buffer
+            (insert-file-contents bib-file)
+            (goto-char (point-max))
+            ;; Regex to find the last entry key: @type{KEY,
+            (if (re-search-backward "^@[a-zA-Z]+{\\([^,]+\\)," nil t)
+                (match-string 1)
+              (error "Could not find a valid BibTeX entry in %s" bib-file))))
+         ;; 2. Find the newest PDF in Downloads
+         (newest-pdf
+          (let ((files (directory-files-and-attributes downloads-dir t "\\.pdf$")))
+            ;; Sort by modification time (descending)
+            (if files
+                (caar (sort files (lambda (a b) (time-less-p (nth 6 b) (nth 6 a)))))
+              nil)))
+         ;; 3. Prompt for Source File (Default: newest PDF)
+         (source-file
+          (read-file-name "Source PDF: "
+                          downloads-dir
+                          newest-pdf
+                          t
+                          (file-name-nondirectory newest-pdf)))
+         ;; 4. Prompt for Target Name (Default: latest-key)
+         (target-name
+          (read-string (format "Target filename (without .pdf): ")
+                       latest-key))
+         ;; Construct full target path
+         (target-path (expand-file-name (concat target-name ".pdf") library-path)))
+    ;; 5. Execute Move
+    (when (file-exists-p target-path)
+      (if (y-or-n-p (format "File %s already exists. Overwrite? " target-path))
+          (delete-file target-path)
+        (user-error "Aborted.")))
+
+    (rename-file source-file target-path)
+    (message "Moved '%s' to '%s'" (file-name-nondirectory source-file) target-path)))
+
 (defun ce/prompt-vterm-buffer ()
   "Prompt the user to select a vterm buffer, defaulting to the most recent."
   (let ((vterms (seq-filter (lambda (name) (string-match-p "vterm" name))
