@@ -391,14 +391,22 @@ is executable."
 (defun ce/gemini-cli-send-region (beg end target-buffer prompt-text)
   "Send PROMPT-TEXT and optional buffer context to a gemini-cli vterm buffer.
 If a region is active, sends the region text and line numbers.
+If no region is active, in an org-mode file, and on a subtree heading, sends
+only the subtree content.
 If no region is active but the buffer visits a file, sends the file name.
 If no region is active and no file is visited, sends only the prompt.
 File paths are made relative to the target vterm's current directory."
   (interactive
-   (list (when (use-region-p) (region-beginning))
-         (when (use-region-p) (region-end))
-         (ce/prompt-vterm-buffer)
-         (read-string "Prompt: ")))
+   (let* ((has-region (use-region-p))
+          ;; Detect if we are on an org heading with no active region
+          (is-org-heading (and (not has-region)
+                               (derived-mode-p 'org-mode)
+                               (org-at-heading-p))))
+     (list (when has-region (region-beginning))
+           (when has-region (region-end))
+           (ce/prompt-vterm-buffer)
+           ;; Skip prompting for text if we just intend to send the org subtree
+           (if is-org-heading "" (read-string "Prompt: ")))))
 
   (unless (get-buffer target-buffer)
     (error "Buffer %s not found." target-buffer))
@@ -408,8 +416,14 @@ File paths are made relative to the target vterm's current directory."
          (vterm-dir (with-current-buffer target-buffer default-directory))
          ;; Convert absolute path to relative path
          (file (when abs-file (file-relative-name abs-file vterm-dir)))
+         (is-org-heading (and (not beg)
+                              (not end)
+                              (derived-mode-p 'org-mode)
+                              (org-at-heading-p)))
          (context
           (cond
+           ;; Case 0: Org heading (ignore standard context, handled in payload)
+           (is-org-heading nil)
            ;; Case 1: Region is active (send region text)
            ((and beg end)
             (format "File: %s (Lines %d-%d)\n=\n%s\n=\n"
@@ -426,11 +440,17 @@ File paths are made relative to the target vterm's current directory."
          ;; Assemble the final string to send
          (payload
           (cond
+           ;; Case 0: On an Org heading, we ONLY send the subtree content
+           (is-org-heading
+            (save-excursion
+              (save-restriction
+                (org-narrow-to-subtree)
+                (buffer-substring-no-properties (point-min) (point-max)))))
            ((and context (not (string-empty-p prompt-text)))
             (format "%s\n\n%s" prompt-text context))
            (context context)
            (t (format "%s\n" prompt-text)))))
 
     ;; Avoid sending completely empty prompts if no context/prompt was given
-    (unless (string= payload "\n")
+    (unless (or (null payload) (string= payload "") (string= payload "\n"))
       (ce/gemini-cli-send-string payload target-buffer nil))))
