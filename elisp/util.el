@@ -377,7 +377,7 @@ is executable."
     ;; Defaults to the first item (most recently active vterm buffer)
     (completing-read "Target vterm: " vterms nil t nil nil (car vterms))))
 
-(defun ce/gemini-cli-send-string (text target-buffer &optional auto-return)
+(defun ce/vterm-send-string (text target-buffer &optional auto-return)
   "Send TEXT to TARGET-BUFFER using bracketed paste."
   (unless (get-buffer target-buffer)
     (error "Buffer %s not found." target-buffer))
@@ -388,8 +388,45 @@ is executable."
     (when auto-return (vterm-send-return)))
   (pop-to-buffer target-buffer))
 
-(defun ce/gemini-cli-send-region (beg end target-buffer prompt-text)
-  "Send PROMPT-TEXT and optional buffer context to a gemini-cli vterm buffer.
+(defun ce/get-buffer-context (&optional beg end target-dir)
+  "Return formatted buffer context (org subtree, region, or filename).
+File paths are formatted relative to TARGET-DIR if provided."
+  (let* ((abs-file (buffer-file-name))
+         (file (when abs-file
+                 (if target-dir (file-relative-name abs-file target-dir) abs-file)))
+         ;; Guess language from file extension or major mode
+         (lang (or (and abs-file (file-name-extension abs-file))
+                   (replace-regexp-in-string "-mode$" "" (symbol-name major-mode))))
+         (is-org-heading (and (not beg)
+                              (not end)
+                              (derived-mode-p 'org-mode)
+                              (org-at-heading-p))))
+    (cond
+     ;; Case 0: Org heading (return subtree content)
+     (is-org-heading
+      (save-excursion
+        (save-restriction
+          (org-narrow-to-subtree)
+          (buffer-substring-no-properties (point-min) (point-max)))))
+
+     ;; Case 1: Region is active (use Markdown code blocks)
+     ((and beg end)
+      (format "File: %s (Lines %d-%d)\n```%s\n%s\n```\n"
+              (or file (buffer-name))
+              (line-number-at-pos beg)
+              (line-number-at-pos end)
+              lang
+              (buffer-substring-no-properties beg end)))
+
+     ;; Case 2: No region, but associated to a file
+     (file
+      (format "File: %s\n" file))
+
+     ;; Case 3: No region, not a file
+     (t nil))))
+
+(defun ce/vterm-send-region (beg end target-buffer prompt-text)
+  "Send PROMPT-TEXT and optional buffer context to a vterm buffer.
 If a region is active, sends the region text and line numbers.
 If no region is active, in an org-mode file, and on a subtree heading, sends
 only the subtree content.
@@ -398,59 +435,110 @@ If no region is active and no file is visited, sends only the prompt.
 File paths are made relative to the target vterm's current directory."
   (interactive
    (let* ((has-region (use-region-p))
-          ;; Detect if we are on an org heading with no active region
           (is-org-heading (and (not has-region)
                                (derived-mode-p 'org-mode)
                                (org-at-heading-p))))
      (list (when has-region (region-beginning))
            (when has-region (region-end))
            (ce/prompt-vterm-buffer)
-           ;; Skip prompting for text if we just intend to send the org subtree
            (if is-org-heading "" (read-string "Prompt: ")))))
 
   (unless (get-buffer target-buffer)
     (error "Buffer %s not found." target-buffer))
 
-  (let* ((abs-file (buffer-file-name))
-         ;; Retrieve the working directory of the target vterm
-         (vterm-dir (with-current-buffer target-buffer default-directory))
-         ;; Convert absolute path to relative path
-         (file (when abs-file (file-relative-name abs-file vterm-dir)))
-         (is-org-heading (and (not beg)
-                              (not end)
-                              (derived-mode-p 'org-mode)
-                              (org-at-heading-p)))
-         (context
-          (cond
-           ;; Case 0: Org heading (ignore standard context, handled in payload)
-           (is-org-heading nil)
-           ;; Case 1: Region is active (send region text)
-           ((and beg end)
-            (format "File: %s (Lines %d-%d)\n=\n%s\n=\n"
-                    (or file (buffer-name))
-                    (line-number-at-pos beg)
-                    (line-number-at-pos end)
-                    (buffer-substring-no-properties beg end)))
-           ;; Case 2: No region, but associated to a file (send file name)
-           (file
-            (format "File: %s\n" file))
-           ;; Case 3: No region, not a file
-           (t nil)))
-
-         ;; Assemble the final string to send
+  (let* ((vterm-dir (with-current-buffer target-buffer default-directory))
+         (context (ce/get-buffer-context beg end vterm-dir))
+         (prompt-empty (string-empty-p (or prompt-text "")))
          (payload
           (cond
-           ;; Case 0: On an Org heading, we ONLY send the subtree content
-           (is-org-heading
-            (save-excursion
-              (save-restriction
-                (org-narrow-to-subtree)
-                (buffer-substring-no-properties (point-min) (point-max)))))
-           ((and context (not (string-empty-p prompt-text)))
-            (format "%s\n\n%s" prompt-text context))
+           ((and context (not prompt-empty)) (format "%s\n\n%s" prompt-text context))
            (context context)
            (t (format "%s\n" prompt-text)))))
 
-    ;; Avoid sending completely empty prompts if no context/prompt was given
-    (unless (or (null payload) (string= payload "") (string= payload "\n"))
-      (ce/gemini-cli-send-string payload target-buffer nil))))
+    (unless (or (null payload) (string-empty-p (string-trim payload)))
+      (ce/vterm-send-string payload target-buffer nil))))
+
+(defun ce/org-send-region (beg end target-buffer-name &optional path-anchor)
+  "Append the context of the current buffer to an open Org buffer.
+BEG and END define the region if active. TARGET-BUFFER-NAME is the
+destination Org buffer. If PATH-ANCHOR is non-nil (e.g. \"google3\"),
+truncates the source file path up to it to use as =target-dir=.
+Otherwise, =target-dir= is passed as nil to default to the absolute path."
+  (interactive
+   (let* ((has-region (use-region-p))
+          (beg (when has-region (region-beginning)))
+          (end (when has-region (region-end)))
+          ;; Collect all open buffers running org-mode
+          (org-buffers (delq nil (mapcar (lambda (b)
+                                           (when (with-current-buffer b
+                                                   (derived-mode-p 'org-mode))
+                                             (buffer-name b)))
+                                         (buffer-list))))
+          (target (if org-buffers
+                      (completing-read "Target Org buffer: " org-buffers nil t)
+                    (error "No Org buffers are currently open"))))
+     ;; Pass nil for path-anchor by default when called interactively
+     (list beg end target nil)))
+
+  (let* ((target-buffer (get-buffer target-buffer-name))
+         (source-path (or (buffer-file-name) default-directory))
+         ;; If path-anchor is given and matches, extract up to it. Otherwise nil.
+         (target-dir (when (and path-anchor
+                                (string-match (format "^.*%s" (regexp-quote path-anchor)) source-path))
+                       (file-name-as-directory (match-string 0 source-path))))
+         (context (ce/get-buffer-context beg end target-dir)))
+    (if (not context)
+        (message "No context found to send.")
+      (with-current-buffer target-buffer
+        (save-excursion
+          (goto-char (point-max))
+          ;; Ensure we start on a new line
+          (unless (bolp) (insert "\n"))
+          ;; Add a blank line separator and insert the context
+          (insert "\n" context "\n")))
+      (message "Appended context to %s" target-buffer-name))))
+
+(defvar ce/run-cli-output-mode 'markdown-mode
+  "Default major mode for output buffers in `ce/run-cli-with-context`.")
+
+(defun ce/run-cli-with-context (command-string beg end user-prompt)
+  "Run COMMAND-STRING asynchronously, passing buffer context and USER-PROMPT.
+COMMAND-STRING can include arguments BEG and END define the region if active."
+  (interactive
+   (let* ((has-region (use-region-p))
+          (beg (when has-region (region-beginning)))
+          (end (when has-region (region-end)))
+          (cmd (read-string "CLI command (with args): "))
+          (prompt (read-string "Prompt: ")))
+     (list cmd beg end prompt)))
+
+  (let* ((context (ce/get-buffer-context beg end))
+         (final-text (concat (or context "")
+                             (when (and context (not (string-empty-p user-prompt)))
+                               "\n\n--- Prompt ---\n")
+                             user-prompt))
+         ;; Split command into program and args, respecting quotes
+         (cmd-parts (split-string-and-unquote command-string))
+         (program (car cmd-parts))
+         (cli-args (cdr cmd-parts))
+         (buf-name (format "*%s-output*" program))
+         (out-buf (get-buffer-create buf-name)))
+
+    (if (string-empty-p (string-trim final-text))
+        (user-error "Nothing to send: context and prompt are both empty")
+
+      (with-current-buffer out-buf
+        (funcall ce/run-cli-output-mode)
+        (erase-buffer)
+        (insert final-text "\n\n"))
+      (display-buffer out-buf)
+
+      ;; Dynamically apply start-process with all arguments
+      (apply #'start-process
+             (format "%s-process" program)
+             out-buf
+             program
+             ;; Append our final-text as the very last argument to the CLI tool
+             (append cli-args (list final-text)))
+
+      (message "Started %s in the background..." program))))
