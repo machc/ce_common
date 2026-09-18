@@ -81,6 +81,23 @@ is executable."
        (forward-line 1)
        (org-babel-where-is-src-block-head)))))
 
+(defun ce/org-export-subtree-to-html5-and-open ()
+  "Export the current Org subtree to HTML5 using Pandoc and open it."
+  (interactive)
+  ;; Arguments: ASYNC SUBTREEP VISIBLE-ONLY BODY-ONLY EXT-PLIST
+  ;; We pass `nil` for async, and `t` for subtreep.
+  (org-pandoc-export-to-html5-and-open nil t))
+
+(defun ce/org-export-subtree-to-docx ()
+  "Export the current Org subtree to docx using Pandoc."
+  (interactive)
+  (org-pandoc-export-to-docx nil t))
+
+(defun ce/org-export-subtree-to-pptx ()
+  "Export the current Org subtree to pptx using Pandoc."
+  (interactive)
+  (org-pandoc-export-to-pptx nil t))
+
 (defun ce/open-corresponding-pdf ()
   "Open pdf corresponding to current file in external app."
   (interactive)
@@ -461,9 +478,9 @@ File paths are made relative to the target vterm's current directory."
 (defun ce/org-send-region (beg end target-buffer-name &optional path-anchor)
   "Append the context of the current buffer to an open Org buffer.
 BEG and END define the region if active. TARGET-BUFFER-NAME is the
-destination Org buffer. If PATH-ANCHOR is non-nil (e.g. \"google3\"),
-truncates the source file path up to it to use as =target-dir=.
-Otherwise, =target-dir= is passed as nil to default to the absolute path."
+destination Org buffer. If PATH-ANCHOR is non-nil, truncates the
+source file path up to it to use as =target-dir=. Otherwise,
+=target-dir= is passed as nil to default to the absolute path."
   (interactive
    (let* ((has-region (use-region-p))
           (beg (when has-region (region-beginning)))
@@ -503,7 +520,7 @@ Otherwise, =target-dir= is passed as nil to default to the absolute path."
 
 (defun ce/run-cli-with-context (command-string beg end user-prompt)
   "Run COMMAND-STRING asynchronously, passing buffer context and USER-PROMPT.
-COMMAND-STRING can include arguments BEG and END define the region if active."
+COMMAND-STRING can include arguments. BEG and END define the region if active."
   (interactive
    (let* ((has-region (use-region-p))
           (beg (when has-region (region-beginning)))
@@ -517,28 +534,127 @@ COMMAND-STRING can include arguments BEG and END define the region if active."
                              (when (and context (not (string-empty-p user-prompt)))
                                "\n\n--- Prompt ---\n")
                              user-prompt))
-         ;; Split command into program and args, respecting quotes
          (cmd-parts (split-string-and-unquote command-string))
          (program (car cmd-parts))
          (cli-args (cdr cmd-parts))
-         (buf-name (format "*%s-output*" program))
-         (out-buf (get-buffer-create buf-name)))
+         (buf-base-name (format "*%s-output*" program))
+         ;; Generate a guaranteed unique buffer (e.g., *program-output*<2>)
+         (out-buf (generate-new-buffer buf-base-name)))
 
     (if (string-empty-p (string-trim final-text))
         (user-error "Nothing to send: context and prompt are both empty")
 
       (with-current-buffer out-buf
         (funcall ce/run-cli-output-mode)
-        (erase-buffer)
-        (insert final-text "\n\n"))
+        ;; erase-buffer is no longer needed since it's a fresh buffer
+        (insert final-text "\n\n--- Output ---\n"))
       (display-buffer out-buf)
 
-      ;; Dynamically apply start-process with all arguments
       (apply #'start-process
-             (format "%s-process" program)
+             ;; Make the process name unique by tying it to the buffer name
+             (format "%s-process" (buffer-name out-buf))
              out-buf
              program
-             ;; Append our final-text as the very last argument to the CLI tool
              (append cli-args (list final-text)))
 
       (message "Started %s in the background..." program))))
+
+(defun ce/open-latest-buffers ()
+  "Use three frames (current + 2 new), split them, and display the 6 latest visited buffers."
+  (interactive)
+  (require 'seq)
+  ;; Get the 6 most recent buffers, ignoring hidden ones
+  (let* ((bufs (seq-take (seq-filter (lambda (b)
+                                       (not (string-prefix-p " " (buffer-name b))))
+                                     (buffer-list))
+                         6))
+         ;; Use the current frame, plus create two new ones
+         (frames (list (selected-frame) (make-frame) (make-frame))))
+
+    ;; Setup all three frames
+    (cl-loop for frame in frames
+             for i from 0 by 2 do
+             (select-frame frame)
+             (delete-other-windows)
+             (let ((b1 (nth i bufs))
+                   (b2 (nth (1+ i) bufs)))
+               (when b1 (set-window-buffer (selected-window) b1))
+               (when b2 (set-window-buffer (split-window-right) b2))))))
+
+(defun ce/bibtex-extract-arxiv-id (entry)
+  "Extract arXiv ID (with optional version) from BibTeX ENTRY alist.
+Checks URL first (to preserve specific versions like v1), then eprint,
+then journal."
+  (let ((url (cdr (assoc-string "url" entry t)))
+        (eprint (cdr (assoc-string "eprint" entry t)))
+        (archive-prefix (cdr (assoc-string "archiveprefix" entry t)))
+        (journal (cdr (assoc-string "journal" entry t)))
+        (arxiv-id-re "\\([0-9]\\{4\\}\\.[0-9]\\{4,5\\}\\(?:v[0-9]+\\)?\\|[a-zA-Z-]+/[0-9]\\{7\\}\\(?:v[0-9]+\\)?\\)"))
+    (cond
+     ;; 1. Check URL: if it points to arXiv, extract ID (including version if specified)
+     ((and url (string-match (concat "arxiv\\.org/\\(?:abs\\|pdf\\)/" arxiv-id-re) url))
+      (match-string 1 url))
+     ;; 2. Check eprint field
+     ((and eprint
+           (or (null archive-prefix)
+               (string-match-p "arxiv" (downcase archive-prefix))
+               (string-match-p (concat "^" arxiv-id-re "$") eprint)))
+      (if (string-match arxiv-id-re eprint)
+          (match-string 1 eprint)
+        eprint))
+     ;; 3. Check journal field (e.g. "arXiv preprint arXiv:1502.00192")
+     ((and journal
+           (string-match-p "arxiv" (downcase journal))
+           (string-match arxiv-id-re journal))
+      (match-string 1 journal))
+     ;; Not an arXiv paper
+     (t nil))))
+
+(defun ce/bibtex-download-arxiv-pdfs (bibfile pdf-dir)
+  "Download missing arXiv PDFs for entries in BIBFILE into PDF-DIR.
+Each PDF is named <key>.pdf where <key> is the BibTeX citation key.
+If <key>.pdf already exists in PDF-DIR, it is skipped.
+If an entry is not on arXiv, it is skipped.
+Returns a plist with (:downloaded ... :skipped-exists ... :skipped-not-arxiv ... :failed ...)."
+  (interactive "fBibTeX file: \nDDirectory for PDFs: ")
+  (require 'parsebib)
+  (require 'org-ref-arxiv)
+  (let* ((bibfile (expand-file-name bibfile))
+         (pdf-dir (file-name-as-directory (expand-file-name pdf-dir)))
+         (entries (parsebib-parse bibfile))
+         downloaded skipped-exists skipped-not-arxiv failed)
+    (unless (file-directory-p pdf-dir)
+      (make-directory pdf-dir t))
+    (maphash
+     (lambda (key entry)
+       (let ((pdf-path (concat pdf-dir key ".pdf")))
+         (cond
+          ;; 1. Check if PDF already exists
+          ((file-exists-p pdf-path)
+           (message "Skipping %s: %s.pdf already exists" key key)
+           (push key skipped-exists))
+          ;; 2. Check if paper is on arXiv
+          (t
+           (let ((arxiv-id (ce/bibtex-extract-arxiv-id entry)))
+             (if (not arxiv-id)
+                 (progn
+                   (message "Skipping %s: Not on arXiv" key)
+                   (push key skipped-not-arxiv))
+               (message "Downloading %s (arXiv: %s) -> %s..." key arxiv-id pdf-path)
+               (condition-case err
+                   (progn
+                     (arxiv-get-pdf arxiv-id pdf-path)
+                     (if (file-exists-p pdf-path)
+                         (progn
+                           (message "Successfully downloaded %s -> %s" key pdf-path)
+                           (push key downloaded))
+                       (message "Failed to download %s (arXiv: %s)" key arxiv-id)
+                       (push key failed)))
+                 (error
+                  (message "Error downloading %s: %s" key (error-message-string err))
+                  (push key failed)))))))))
+     entries)
+    (list :downloaded (nreverse downloaded)
+          :skipped-exists (nreverse skipped-exists)
+          :skipped-not-arxiv (nreverse skipped-not-arxiv)
+          :failed (nreverse failed))))
